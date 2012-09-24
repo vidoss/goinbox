@@ -1,0 +1,18 @@
+<html>
+<head>
+</head>
+   <title>Inbox</title>
+  <body>
+    {{range .Messages}}
+      <ul>
+         <li>{{.From}}</li>
+         <li>{{.To}}</li>
+         <li>{{.Subject}}</li>
+      </ul>
+      <div>{{.Body}}</div>
+    {{end}}
+	<div id="token" class="hidden">{{.Token}}</div>
+  </body>
+  <script type="text/javascript" src="/_ah/channel/jsapi"></script>
+  <script type="text/javascript" data-main="static/js/main.js" src="static/js/jquery/require-jquery-1.7.2.js"></script>
+</html>

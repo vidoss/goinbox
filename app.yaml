@@ -1,0 +1,19 @@
+application: jimmys-inbox
+version: 1
+runtime: go
+api_version: go1
+
+handlers:
+- url: /favicon\.ico
+  static_files: static/images/favicon.ico
+  upload: static/images/favicon\.ico
+
+- url: /static
+  static_dir: static
+
+- url: /.*
+  script: _go_app
+
+inbound_services:
+- mail
+- channel_presence
