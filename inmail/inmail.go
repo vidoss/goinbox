@@ -4,7 +4,9 @@ import (
 	"appengine"
 	"time"
 	"appengine/datastore"
+	"appengine/blobstore"
 	"appengine/channel"
+	"appengine/image"
 	"bytes"
 	"encoding/base64"
 	"encoding/json"
@@ -30,7 +32,7 @@ func incomingMail(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 
 	var msg Message
-	err := msg.parse(r.Body)
+	err := msg.parse(c, r.Body)
 	if err != nil {
 		c.Errorf("Error parsing mail: %v", err)
 		return
@@ -41,6 +43,10 @@ func incomingMail(w http.ResponseWriter, r *http.Request) {
 		c.Errorf("Error saving mail: %v", err)
 		return
     }
+
+   if err != nil {
+		c.Errorf("Error converting images to url: %v", err)
+   }
 
 	err = publishToChannels(c, &msg)
 	if err != nil {
@@ -86,24 +92,25 @@ func publishToChannels(c appengine.Context, msg *Message) error {
 // connected websocket clients.
 type Message struct {
 	// HTML-escaped fields sent to the client
-	From, To string
-	Subject  string
-	Body     string 
-	Images []image
+	From, To  string
+	Subject   string
+	Body      string  	`datastore:",noindex"` 
+	ImageUrls []string	`datastore:",noindex"`
 	ReceivedDate time.Time
 
 	// internal state
+	images []img_attachment
 	bodies []string
 	buf    bytes.Buffer // for accumulating email as it comes in
 	msg    interface{}  // alternate message to send
 }
 
-type image struct {
+type img_attachment struct {
 	Type string
 	Data []byte
 }
 
-func (m *Message) parse(r io.Reader) error {
+func (m *Message) parse(c appengine.Context, r io.Reader) error {
 	msg, err := mail.ReadMessage(r)
 	if err != nil {
 		return err
@@ -131,7 +138,56 @@ func (m *Message) parse(r io.Reader) error {
 			}
 		}
 	}
+	// dump image attachments to blob store and get the urls.
+	m.images2urls(c);
+
 	return nil
+}
+
+func (m *Message) images2urls(c appengine.Context) {
+   urlc := make(chan string)
+	for _, im := range m.images {
+		go func(img *img_attachment) {
+			w, err := blobstore.Create(c, img.Type)
+			if err != nil {
+				urlc <- err.Error()
+				return;
+			}
+			_, err = w.Write(img.Data)
+			if err != nil {
+				urlc <- err.Error()
+				return
+			}
+			err = w.Close()
+			if err != nil {
+				urlc <- err.Error()
+				return
+			}
+			key, err := w.Key()
+			if err != nil {
+				urlc <- err.Error()
+				return
+			}
+			url, err := image.ServingURL(c, key, &image.ServingURLOptions{Secure: false,Size: 0,Crop: false})
+			if err != nil {
+				urlc <- err.Error()
+				return
+			}
+			urlc <- url.String()
+		}(&im)
+	}
+
+   imagescnt := len(m.images)
+	m.ImageUrls = make([]string,0,imagescnt)
+   for i := 0; i < imagescnt; i++ {
+		u := <-urlc
+		if strings.HasPrefix(u, "http") {
+			m.ImageUrls = append(m.ImageUrls, u)
+		} else {
+			c.Errorf("Error converting image to url: %v", u)
+		}
+   }
+	return
 }
 
 // parseMultipart populates Body (preferring text/plain) and images,
@@ -176,7 +232,7 @@ func (m *Message) parseMultipart(r io.Reader, boundary string) error {
 				log.Printf("image base64 decode error: %v", err)
 				continue
 			}
-			m.Images = append(m.Images, image{
+			m.images = append(m.images, img_attachment{
 				Type: partType,
 				Data: imdata,
 			})
