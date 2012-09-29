@@ -51,17 +51,13 @@
 				</ul>
 			</div>
 			<div class="span10">
-				<table class="table">
-					<tbody>
-    					{{range .Messages}}
-      					<tr>
-								<td><input type="checkbox"></td>
-        		 				<td>{{.From}}</td>
-        		 				<td>{{.Subject}}</td>
-      					</tr>
-    					{{end}}
-					</tbody>
-				</table>
+    			{{range .Messages}}
+				<div class="row">
+					<div class="span0"><input type="checkbox"></div>
+        		 	<div class="span2">{{.FromDisplay}}</div>
+        		 	<div class="span7">{{.Subject}}</div>
+				</div>
+    			{{end}}
 			</div>
 		</div>
 	</div>

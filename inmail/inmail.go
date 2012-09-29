@@ -19,6 +19,8 @@ import (
 	"net/mail"
 	"strings"
 	"strconv"
+	"math/rand"
+	"regexp"
 )
 
 func init() {
@@ -93,6 +95,7 @@ func publishToChannels(c appengine.Context, msg *Message) error {
 type Message struct {
 	// HTML-escaped fields sent to the client
 	From, To  string
+	FromDisplay string	`datastore:",noindex"`
 	Subject   string
 	Body      string  	`datastore:",noindex"` 
 	ImageUrls []string	`datastore:",noindex"`
@@ -110,6 +113,24 @@ type img_attachment struct {
 	Data []byte
 }
 
+func maskEmail(emailAddress string) string {
+	reg, err := regexp.Compile("\\<.*?\\>")
+	if err != nil {
+		return "Jimmy Anon"
+	}
+	display := reg.Find([]byte(emailAddress))
+	if display != nil {
+		return strings.Trim(string(display),"<>")
+	}
+	maskFunc := func(r rune) rune {
+		if  rand.Intn(2) == 1 {
+				return '✯'
+		}
+		return r
+	}
+	return strings.Map(maskFunc, strings.Split(emailAddress,"@")[0])
+}
+
 func (m *Message) parse(c appengine.Context, r io.Reader) error {
 	msg, err := mail.ReadMessage(r)
 	if err != nil {
@@ -118,6 +139,7 @@ func (m *Message) parse(c appengine.Context, r io.Reader) error {
 	m.Subject = msg.Header.Get("Subject")
 	m.From = msg.Header.Get("From")
 	m.To = msg.Header.Get("To")
+	m.FromDisplay = maskEmail(m.From)
 	m.ReceivedDate = time.Now()
 
 	mediaType, params, err := mime.ParseMediaType(msg.Header.Get("Content-Type"))
