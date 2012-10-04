@@ -48,7 +48,7 @@
 		});
 
 		ns.app_router = new AppRouter();
-		Backbone.history.start();
+		Backbone.history.start({pushState: true});
 	}
 
 	$(function() {

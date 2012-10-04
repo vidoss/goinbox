@@ -8,14 +8,14 @@
     <meta name="author" content="">
 
     <!-- Le styles -->
-    <link href="static/css/bootstrap.css" rel="stylesheet">
+    <link href="/static/css/bootstrap.css" rel="stylesheet">
     <style>
       body {
         padding-top: 60px; /* 60px to make the container go all the way to the bottom of the topbar */
       }
     </style>
-    <link href="static/css/bootstrap-responsive.css" rel="stylesheet">
-    <link href="static/css/app.css" rel="stylesheet">
+    <link href="/static/css/bootstrap-responsive.css" rel="stylesheet">
+    <link href="/static/css/app.css" rel="stylesheet">
 
     <!-- Le HTML5 shim, for IE6-8 support of HTML5 elements -->
     <!--[if lt IE 9]>
@@ -24,11 +24,11 @@
 
     <!-- Le fav and touch icons -->
     <!--
-    <link rel="shortcut icon" href="static/ico/favicon.ico">
-    <link rel="apple-touch-icon-precomposed" sizes="144x144" href="static/ico/apple-touch-icon-144-precomposed.png">
-    <link rel="apple-touch-icon-precomposed" sizes="114x114" href="static/ico/apple-touch-icon-114-precomposed.png">
-    <link rel="apple-touch-icon-precomposed" sizes="72x72" href="static/ico/apple-touch-icon-72-precomposed.png">
-    <link rel="apple-touch-icon-precomposed" href="static/ico/apple-touch-icon-57-precomposed.png">
+    <link rel="shortcut icon" href="/static/ico/favicon.ico">
+    <link rel="apple-touch-icon-precomposed" sizes="144x144" href="/static/ico/apple-touch-icon-144-precomposed.png">
+    <link rel="apple-touch-icon-precomposed" sizes="114x114" href="/static/ico/apple-touch-icon-114-precomposed.png">
+    <link rel="apple-touch-icon-precomposed" sizes="72x72" href="/static/ico/apple-touch-icon-72-precomposed.png">
+    <link rel="apple-touch-icon-precomposed" href="/static/ico/apple-touch-icon-57-precomposed.png">
     -->
   </head>
   <body>
@@ -50,19 +50,24 @@
 					</li>
 				</ul>
 			</div>
-			<div class="span10">
-    			{{range .Messages}}
-				<div class="row">
+			<div class="span10 inbox">
+    			{{range $index,$message := .Messages}}
+				<div class="row" data-key="email/{{.Key}}">
 					<div class="span0"><input type="checkbox"></div>
-        		 	<div class="span2">{{.FromDisplay}}</div>
-        		 	<div class="span7">{{.Subject}}</div>
+        		 	<div class="span2">{{.From}}&nbsp;</div>
+        		 	<div class="span7">{{.Subject | html}}</div>
 				</div>
     			{{end}}
 			</div>
+			{{range .Messages}}
+				<div id="email-{{.Key}}" class="span10 email-body hidden">
+					{{.Body}}
+				</div>
+			{{end}}
 		</div>
 	</div>
 	<div id="token" class="hidden">{{.Token}}</div>
   </body>
   <script type="text/javascript" src="/_ah/channel/jsapi"></script>
-  <script type="text/javascript" data-main="static/js/main.js" src="static/js/jquery/require-jquery-1.7.2.js"></script>
+  <script type="text/javascript" data-main="/static/js/main.js" src="/static/js/jquery/require-jquery-1.7.2.js"></script>
 </html>

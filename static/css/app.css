@@ -6,3 +6,11 @@ body {
 .nav [class^="icon-"], [class*=" icon-"] {
 	vertical-align: middle;
 }
+
+.inbox .row {
+	padding-bottom: 6px;
+	padding-top: 6px;
+	border-bottom: 1px solid #E5E5FF;
+	cursor: pointer;
+}
+

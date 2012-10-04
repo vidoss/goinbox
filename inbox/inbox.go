@@ -8,11 +8,21 @@ import (
 	"inmail"
 	"net/http"
 	"strconv"
+	"time"
 )
 
-type TemplateData struct {
+type templateData struct {
 	Token    string
-	Messages []inmail.Message
+	Messages []inboxItem
+}
+
+type inboxItem struct {
+	Key				int64
+	From  			string
+	Subject 			string
+	Body				template.HTML
+	ImageUrls		*[]string
+	ReceivedDate	time.Time
 }
 
 func init() {
@@ -34,9 +44,27 @@ func getMessages(w http.ResponseWriter, req *http.Request) {
 	q := datastore.NewQuery("Message").Order("-ReceivedDate").Limit(50)
 
 	messages := make([]inmail.Message, 0, 50)
-	if _, err := q.GetAll(c, &messages); err != nil {
+	keys, err := q.GetAll(c, &messages);
+	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
+	}
+
+	inboxItems := make([]inboxItem,0,len(messages));
+	for i,msg := range messages {
+		body := template.HTML(msg.Body)
+		if msg.BodyHtml != nil {
+			body = template.HTML(msg.BodyHtml)
+		}
+		iItem := inboxItem{
+				Key: keys[i].IntID(), 
+				From: msg.FromDisplay,
+				Subject: msg.Subject,
+				Body: body,
+				ImageUrls: &msg.ImageUrls,
+				ReceivedDate: msg.ReceivedDate,
+		}
+		inboxItems = append(inboxItems, iItem)
 	}
 
 	low, _, err := datastore.AllocateIDs(c, "endpoint", nil, 1)
@@ -49,7 +77,7 @@ func getMessages(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	if err := inboxTemplate.Execute(w, TemplateData{token, messages}); err != nil {
+	if err := inboxTemplate.Execute(w, templateData{Token: token, Messages: inboxItems}); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }

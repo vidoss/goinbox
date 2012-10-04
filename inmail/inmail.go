@@ -19,8 +19,8 @@ import (
 	"net/mail"
 	"strings"
 	"strconv"
-	"math/rand"
 	"regexp"
+	"qprintable"
 )
 
 func init() {
@@ -95,10 +95,11 @@ func publishToChannels(c appengine.Context, msg *Message) error {
 type Message struct {
 	// HTML-escaped fields sent to the client
 	From, To  string
-	FromDisplay string	`datastore:",noindex"`
+	FromDisplay string			`datastore:",noindex"`
 	Subject   string
-	Body      string  	`datastore:",noindex"` 
-	ImageUrls []string	`datastore:",noindex"`
+	Body      string  			`datastore:",noindex"` 
+	BodyHtml  []byte 				`datastore:",noindex"` 
+	ImageUrls []string			`datastore:",noindex"`
 	ReceivedDate time.Time
 
 	// internal state
@@ -113,22 +114,16 @@ type img_attachment struct {
 	Data []byte
 }
 
-func maskEmail(emailAddress string) string {
+func getFromDisplay(emailAddress string) string {
 	reg, err := regexp.Compile("\\<.*?\\>")
 	if err != nil {
 		return "Jimmy Anon"
 	}
 	display := reg.Find([]byte(emailAddress))
 	if display != nil {
-		return strings.Trim(string(display),"<>")
+		return strings.Replace(emailAddress,string(display),"",-1)
 	}
-	maskFunc := func(r rune) rune {
-		if  rand.Intn(2) == 1 {
-				return '✯'
-		}
-		return r
-	}
-	return strings.Map(maskFunc, strings.Split(emailAddress,"@")[0])
+	return strings.Split(emailAddress,"@")[0]
 }
 
 func (m *Message) parse(c appengine.Context, r io.Reader) error {
@@ -139,7 +134,7 @@ func (m *Message) parse(c appengine.Context, r io.Reader) error {
 	m.Subject = msg.Header.Get("Subject")
 	m.From = msg.Header.Get("From")
 	m.To = msg.Header.Get("To")
-	m.FromDisplay = maskEmail(m.From)
+	m.FromDisplay = getFromDisplay(m.From)
 	m.ReceivedDate = time.Now()
 
 	mediaType, params, err := mime.ParseMediaType(msg.Header.Get("Content-Type"))
@@ -264,10 +259,24 @@ func (m *Message) parseMultipart(r io.Reader, boundary string) error {
 			continue
 		}
 		slurp, _ := ioutil.ReadAll(part)
-		if partType == "text/plain" {
-			m.Body = string(slurp)
-		} else {
-			m.bodies = append(m.bodies, string(slurp))
+		switch {
+			case partType == "text/plain":
+				m.Body = string(slurp)
+				break;
+
+			case partType == "text/html":
+				if part.Header.Get("Content-Transfer-Encoding") == "quoted-printable" {
+					decoder := qprintable.NewDecoder(qprintable.UnixTextEncoding,bytes.NewBuffer(slurp))
+					chunk := make([]byte, len(slurp))
+					decoder.Read(chunk)
+					m.BodyHtml = chunk
+				} else {
+					m.BodyHtml = slurp
+				}
+				break
+
+			default:
+				m.bodies = append(m.bodies, string(slurp))
 		}
 	}
 	return nil
