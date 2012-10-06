@@ -32,19 +32,58 @@
     -->
   </head>
   <body>
+	<!--
+	<div class="navbar navbar-fixed-top">
+  		<div class="navbar-inner">
+    		<ul class="nav pull-right">
+     		 	<li class="active"><a href="#">Home</a></li>
+     		 	<li><a href="#">Link</a></li>
+      		<li><a href="#">Link</a></li>
+    		</ul>
+  		</div>
+	</div>
+	-->
 	<div class="container-fluid">
+		<div class="row action-row">
+			<div class="span btn-group offset2-7 select-mail">
+				<div class="btn">
+					<label class="checkbox">
+						<input type="checkbox">
+					</label>
+				</div>
+				<button class="btn dropdown-toggle" data-toggle="dropdown">
+					<span class="caret"></span>
+				</button>
+				<ul class="dropdown-menu">
+				</ul>
+			</div>
+			<button class="btn offset2 span back-button hidden"><i class="icon-arrow-left"></i></button>
+			<div class="span5 btn-group action-buttons hidden">
+  				<button class="btn trash-button"><!-- <i class="icon-trash"></i> -->Delete</button>
+				<div class="btn-group tag-button">
+  					<button class="btn dropdown-toggle moveto" data-toggle="dropdown">
+						<!-- <i class="icon-tags"></i> -->Move To: <span class="caret"></span>
+					</button>
+					<ul class="dropdown-menu">
+					</ul>
+				</div>
+			</div>
+			<button class="btn btn-primary hidden unread-button">Mark As Unread</button>
+		</div>
 		<div class="row">
 			<div class="span2">
 				<ul class="nav nav-pills nav-stacked">				
 					<li class="active">
 						<a href="#"><i class="icon-inbox"></i> Inbox</a>
 					</li>
+<!--
 					<li>
 						<a href="#"><i class="icon-star"></i> Starred</a>
 					</li>
 					<li>
 						<a href="#"><i class="icon-share-alt"></i> Sent</a>
 					</li>
+-->
 					<li>
 						<a href="#"><i class="icon-trash"></i> Trash</a>
 					</li>

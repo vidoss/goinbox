@@ -266,7 +266,7 @@ func (m *Message) parseMultipart(r io.Reader, boundary string) error {
 
 			case partType == "text/html":
 				if part.Header.Get("Content-Transfer-Encoding") == "quoted-printable" {
-					decoder := qprintable.NewDecoder(qprintable.UnixTextEncoding,bytes.NewBuffer(slurp))
+					decoder := qprintable.NewDecoder(qprintable.BinaryEncoding,bytes.NewBuffer(slurp))
 					chunk := make([]byte, len(slurp))
 					decoder.Read(chunk)
 					m.BodyHtml = chunk

@@ -14,3 +14,29 @@ body {
 	cursor: pointer;
 }
 
+.action-row {
+	margin-top: -10px;
+	margin-bottom: 10px;
+}
+
+.action-row .action-buttons {
+	margin-left: 20px;
+}
+
+.action-row .btn-group > .moveto {
+	border-bottom-left-radius: 0px;
+	border-top-left-radius: 0px;
+}
+
+.offset2-7 { /* offset2 minus 7 */
+	margin-left: 223px;
+}
+
+.offset2-7 > div.btn:first-child {
+    padding-bottom: 1px;
+    padding-top: 2px;
+}
+
+.offset2-7 > div.btn:first-child input[type="checkbox"] {
+	margin-top: 5px;
+}

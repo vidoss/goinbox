@@ -29,6 +29,7 @@ var encDetectionTests = []encDetectionTestData{
 	{"Hello\nworld\r\n", BinaryEncoding},
 	{"\r\nHello\rworld\n", BinaryEncoding},
 	{"Hello world", UnixTextEncoding},
+	{"Hello nworld", WindowsTextEncoding},
 }
 
 var universalTests = []universalTestData{ // Will be tested with all encodings
