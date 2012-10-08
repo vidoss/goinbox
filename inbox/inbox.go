@@ -38,9 +38,33 @@ func onMessage(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
+func getBrowserId(c appengine.Context, w http.ResponseWriter, req *http.Request) (string, error) {
+	bidCookie, err := req.Cookie("browserid");
+	if err != nil {
+		low, _, err := datastore.AllocateIDs(c, "endpoint", nil, 1)
+		if err != nil {
+			return "", err
+		}
+		browserId := strconv.FormatInt(low, 10)
+		cookie := http.Cookie{ Name: "browserid", Value: browserId }
+		http.SetCookie(w, &cookie);
+		return browserId, nil
+	}
+	return bidCookie.Value, nil
+}
+
 func getMessages(w http.ResponseWriter, req *http.Request) {
+
 	defer req.Body.Close()
+
 	c := appengine.NewContext(req)
+
+	browserId,err := getBrowserId(c, w, req)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
 	q := datastore.NewQuery("Message").Order("-ReceivedDate").Limit(50)
 
 	messages := make([]inmail.Message, 0, 50)
@@ -67,16 +91,14 @@ func getMessages(w http.ResponseWriter, req *http.Request) {
 		inboxItems = append(inboxItems, iItem)
 	}
 
-	low, _, err := datastore.AllocateIDs(c, "endpoint", nil, 1)
+	// Cannel token
+	token, err := channel.Create(c, browserId)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	token, err := channel.Create(c, strconv.FormatInt(low, 10))
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
+
+	// Template
 	if err := inboxTemplate.Execute(w, templateData{Token: token, Messages: inboxItems}); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
