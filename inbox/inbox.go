@@ -38,19 +38,23 @@ func onMessage(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
-func getBrowserId(c appengine.Context, w http.ResponseWriter, req *http.Request) (string, error) {
-	bidCookie, err := req.Cookie("browserid");
+func getChannelToken(c appengine.Context, w http.ResponseWriter, req *http.Request) (string, error) {
+	tokenCookie, err := req.Cookie("token");
 	if err != nil {
 		low, _, err := datastore.AllocateIDs(c, "endpoint", nil, 1)
 		if err != nil {
 			return "", err
 		}
 		browserId := strconv.FormatInt(low, 10)
-		cookie := http.Cookie{ Name: "browserid", Value: browserId }
+		token, err := channel.Create(c, browserId)
+		if err != nil {
+			return "", err
+		}
+		cookie := http.Cookie{ Name: "token", Value: token }
 		http.SetCookie(w, &cookie);
-		return browserId, nil
+		return token, nil
 	}
-	return bidCookie.Value, nil
+	return tokenCookie.Value, nil
 }
 
 func getMessages(w http.ResponseWriter, req *http.Request) {
@@ -59,7 +63,7 @@ func getMessages(w http.ResponseWriter, req *http.Request) {
 
 	c := appengine.NewContext(req)
 
-	browserId,err := getBrowserId(c, w, req)
+	token,err := getChannelToken(c, w, req)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -78,6 +82,7 @@ func getMessages(w http.ResponseWriter, req *http.Request) {
 	for i,msg := range messages {
 		body := template.HTML(msg.Body)
 		if msg.BodyHtml != nil {
+			//FIXME: Escape </textarea>
 			body = template.HTML(msg.BodyHtml)
 		}
 		iItem := inboxItem{
@@ -89,13 +94,6 @@ func getMessages(w http.ResponseWriter, req *http.Request) {
 				ReceivedDate: msg.ReceivedDate,
 		}
 		inboxItems = append(inboxItems, iItem)
-	}
-
-	// Cannel token
-	token, err := channel.Create(c, browserId)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
 	}
 
 	// Template

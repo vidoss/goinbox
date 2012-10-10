@@ -100,7 +100,9 @@
 			</div>
 			{{range .Messages}}
 				<div id="email-{{.Key}}" class="span10 email-body hidden">
-					{{.Body}}
+					<textarea class="hidden">
+						{{.Body}}
+					</textarea>
 				</div>
 			{{end}}
 		</div>

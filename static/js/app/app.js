@@ -62,6 +62,11 @@
 
 		showBody: function(bodyEl) {
 			bodyEl.removeClass("hidden");
+			var rendered = bodyEl.data("rendered");
+			if (!rendered) {
+				var tareaEl = bodyEl.children('textarea');
+				bodyEl.html(tareaEl.val()).data("rendered",true);
+			}
 			this.$el.addClass("hidden");
 			this.actionBtns.mailBodyMode();
 		}
