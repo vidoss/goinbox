@@ -37,14 +37,16 @@
 
 	var InboxView = Backbone.View.extend({
 
-		el: ".inbox",
+		el: ".email-list",
 
 		events: {
-			"click .inbox .row": "openEmail"
+			"click .email-list .row": "openEmail"
 		},
 
 		initialize: function() {
 			this.actionBtns = new ActionBtnView();
+			this.timeQuotePrefix = /^["\s]["\s]*/ ;
+			this.timeQuoteSuffix = /["\s]*["\s]$/ ;
 		},
 
 		openEmail: function(e) {
@@ -61,12 +63,38 @@
 		},
 
 		showBody: function(bodyEl) {
-			bodyEl.removeClass("hidden");
 			var rendered = bodyEl.data("rendered");
+			bodyEl.removeClass('hidden');
 			if (!rendered) {
-				var tareaEl = bodyEl.children('textarea');
-				bodyEl.html(tareaEl.val()).data("rendered",true);
-			}
+
+				var textareaEl = bodyEl.children('textarea'),
+					progressEl = bodyEl.children('.progress'),
+					barEl = progressEl.children(".bar"),
+					ifr = bodyEl.children('iframe'),
+					ifrDoc = ifr.contents();
+
+				progressEl.removeClass('hidden');
+				barEl.animate({
+					width: "90%"
+				},'fast');
+						ifr.removeClass("hidden");
+				ifr.load(function() {
+					barEl.stop(true,true).width("100%");
+					$(this).width(ifrDoc.width()+100);
+					$(this).height(ifrDoc.height()+100);
+					ifr.unbind('load');
+					_.defer(function(){
+						progressEl.addClass("hidden");
+						ifr.removeClass("hidden");
+					});
+				});
+
+				ifrDoc[0].open('text/html','replace');
+				ifrDoc[0].write(textareaEl.val())
+				ifrDoc[0].close();
+
+				bodyEl.data("rendered",true);
+			} 
 			this.$el.addClass("hidden");
 			this.actionBtns.mailBodyMode();
 		}

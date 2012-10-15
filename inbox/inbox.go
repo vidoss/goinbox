@@ -11,6 +11,15 @@ import (
 	"time"
 )
 
+var (
+   templates = template.Must(template.ParseFiles(
+      "tmpl/fullpage.html",
+      "tmpl/messages.html",
+      "tmpl/emails.html",
+      "tmpl/error.html",
+   ))
+)
+
 type templateData struct {
 	Token    string
 	Messages []inboxItem
@@ -26,17 +35,30 @@ type inboxItem struct {
 }
 
 func init() {
-	http.HandleFunc("/", getMessages)
-	http.HandleFunc("/message", onMessage)
+	http.HandleFunc("/", errorHandler(getInbox))
+	http.HandleFunc("/inbox", errorHandler(getInbox))
+	//http.HandleFunc("/trash", errorHandler(getTrash))
+	//http.HandleFunc("/email/id", errorHandler(getTrash))
+	//http.HandleFunc("/folder", errorHandler(getTrash))
+	//http.HandleFunc("/folder/id", errorHandler(getTrash))
+	//http.HandleFunc("/rules", errorHandler(getTrash))
+	//http.HandleFunc("/rules/id", errorHandler(getTrash))
 }
 
-func onMessage(w http.ResponseWriter, req *http.Request) {
-	switch req.Method {
-	case "GET":
-		getMessages(w, req)
-		break
+func errorHandler(fn func(http.ResponseWriter,*http.Request) error) http.HandlerFunc {
+   return func(w http.ResponseWriter, r *http.Request) {
+
+		defer r.Body.Close()
+
+		err := fn(w, r)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			templates.ExecuteTemplate(w, "error.html", err)
+		}
+
 	}
 }
+
 
 func getChannelToken(c appengine.Context, w http.ResponseWriter, req *http.Request) (string, error) {
 	tokenCookie, err := req.Cookie("token");
@@ -57,16 +79,13 @@ func getChannelToken(c appengine.Context, w http.ResponseWriter, req *http.Reque
 	return tokenCookie.Value, nil
 }
 
-func getMessages(w http.ResponseWriter, req *http.Request) {
-
-	defer req.Body.Close()
-
+func getInbox(w http.ResponseWriter, req *http.Request) error {
+	
 	c := appengine.NewContext(req)
 
 	token,err := getChannelToken(c, w, req)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+		return err
 	}
 
 	q := datastore.NewQuery("Message").Order("-ReceivedDate").Limit(50)
@@ -74,15 +93,13 @@ func getMessages(w http.ResponseWriter, req *http.Request) {
 	messages := make([]inmail.Message, 0, 50)
 	keys, err := q.GetAll(c, &messages);
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+		return err
 	}
 
 	inboxItems := make([]inboxItem,0,len(messages));
 	for i,msg := range messages {
 		body := template.HTML(msg.Body)
 		if msg.BodyHtml != nil {
-			//FIXME: Escape </textarea>
 			body = template.HTML(msg.BodyHtml)
 		}
 		iItem := inboxItem{
@@ -97,9 +114,11 @@ func getMessages(w http.ResponseWriter, req *http.Request) {
 	}
 
 	// Template
-	if err := inboxTemplate.Execute(w, templateData{Token: token, Messages: inboxItems}); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+	err = templates.ExecuteTemplate(w, "fullpage.html", templateData{Token: token, Messages: inboxItems})
+	if err != nil {
+		return err
 	}
+	return nil;
+
 }
 
-var inboxTemplate = template.Must(template.New("inbox.html").ParseFiles("tmpl/inbox.html"))

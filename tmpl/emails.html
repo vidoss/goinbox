@@ -1,0 +1,25 @@
+{{define "EMAILS"}}
+			<div class="span10 email-list">
+    			{{range $index,$message := .Messages}}
+				<div class="row" data-key="email/{{.Key}}">
+					<div class="span0"><input type="checkbox"></div>
+        		 	<div class="span2">{{.From}}&nbsp;</div>
+        		 	<div class="span7">{{.Subject | html}}</div>
+				</div>
+    			{{end}}
+			</div>
+
+			{{range .Messages}}
+
+			<div id="email-{{.Key}}" class="span10 email-body hidden">
+				<div class="progress progress-info hidden">
+  					<div class="bar" style="width: 20%"></div>
+				</div>
+				<textarea class="hidden">
+					{{.Body}}
+				</textarea>
+				<iframe class="hidden"></iframe>
+			</div>
+
+			{{end}}
+{{end}}

@@ -59,10 +59,10 @@
 			</div>
 			<button class="btn offset2 span back-button hidden"><i class="icon-arrow-left"></i></button>
 			<div class="span5 btn-group action-buttons hidden">
-  				<button class="btn trash-button"><!-- <i class="icon-trash"></i> -->Delete</button>
+  				<button class="btn trash-button"><i class="icon-trash"></i> Delete</button>
 				<div class="btn-group tag-button">
   					<button class="btn dropdown-toggle moveto" data-toggle="dropdown">
-						<!-- <i class="icon-tags"></i> -->Move To: <span class="caret"></span>
+						<i class="icon-folder-open"></i> Move To <span class="caret"></span>
 					</button>
 					<ul class="dropdown-menu">
 					</ul>
@@ -78,7 +78,7 @@
 					</li>
 <!--
 					<li>
-						<a href="#"><i class="icon-star"></i> Starred</a>
+						<a href="#"><i class="icon-eye-close"></i> Unread</a>
 					</li>
 					<li>
 						<a href="#"><i class="icon-share-alt"></i> Sent</a>
@@ -87,24 +87,15 @@
 					<li>
 						<a href="#"><i class="icon-trash"></i> Trash</a>
 					</li>
+					<li class="divider"></li>
+					<li>
+						<input placeholder="Folder" type="text" class="input-medium">
+					</li>
 				</ul>
 			</div>
-			<div class="span10 inbox">
-    			{{range $index,$message := .Messages}}
-				<div class="row" data-key="email/{{.Key}}">
-					<div class="span0"><input type="checkbox"></div>
-        		 	<div class="span2">{{.From}}&nbsp;</div>
-        		 	<div class="span7">{{.Subject | html}}</div>
-				</div>
-    			{{end}}
-			</div>
-			{{range .Messages}}
-				<div id="email-{{.Key}}" class="span10 email-body hidden">
-					<textarea class="hidden">
-						{{.Body}}
-					</textarea>
-				</div>
-			{{end}}
+
+			{{template "EMAILS" .}}
+
 		</div>
 	</div>
 	<div id="token" class="hidden">{{.Token}}</div>
