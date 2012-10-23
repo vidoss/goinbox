@@ -68,32 +68,23 @@
 			if (!rendered) {
 
 				var textareaEl = bodyEl.children('textarea'),
-					progressEl = bodyEl.children('.progress'),
-					barEl = progressEl.children(".bar"),
 					ifr = bodyEl.children('iframe'),
 					ifrDoc = ifr.contents();
 
-				progressEl.removeClass('hidden');
-				barEl.animate({
-					width: "90%"
-				},'fast');
-						ifr.removeClass("hidden");
 				ifr.load(function() {
-					barEl.stop(true,true).width("100%");
-					$(this).width(ifrDoc.width()+100);
-					$(this).height(ifrDoc.height()+100);
-					ifr.unbind('load');
-					_.defer(function(){
-						progressEl.addClass("hidden");
-						ifr.removeClass("hidden");
+					var _self = this;
+					_.defer(function() {
+						$(_self).height(ifrDoc[0].body.offsetHeight);
+						ifr.unbind('load');
 					});
 				});
 
 				ifrDoc[0].open('text/html','replace');
-				ifrDoc[0].write(textareaEl.val())
+				ifrDoc[0].write(textareaEl.text())
 				ifrDoc[0].close();
 
 				bodyEl.data("rendered",true);
+				textareaEl.remove();
 			} 
 			this.$el.addClass("hidden");
 			this.actionBtns.mailBodyMode();

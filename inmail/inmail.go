@@ -12,7 +12,6 @@ import (
 	"encoding/json"
 	"io"
 	"io/ioutil"
-	"log"
 	"mime"
 	"mime/multipart"
 	"net/http"
@@ -33,7 +32,10 @@ func incomingMail(w http.ResponseWriter, r *http.Request) {
 	c := appengine.NewContext(r)
 	defer r.Body.Close()
 
+	//c.Infof("Inside incomingMail");
+
 	var msg Message
+	//c.Infof("before parse");
 	err := msg.parse(c, r.Body)
 	if err != nil {
 		c.Errorf("Error parsing mail: %v", err)
@@ -127,8 +129,10 @@ func getFromDisplay(emailAddress string) string {
 }
 
 func (m *Message) parse(c appengine.Context, r io.Reader) error {
+	//c.Infof("Inside parse")
 	msg, err := mail.ReadMessage(r)
 	if err != nil {
+		c.Errorf("Error mail.ReadMessaage(): %v",err)
 		return err
 	}
 	m.Subject = msg.Header.Get("Subject")
@@ -139,11 +143,14 @@ func (m *Message) parse(c appengine.Context, r io.Reader) error {
 
 	mediaType, params, err := mime.ParseMediaType(msg.Header.Get("Content-Type"))
 	if err != nil || !strings.HasPrefix(mediaType, "multipart/") {
+		c.Errorf("Error mail.ParseMediaType(): %v",err)
 		slurp, _ := ioutil.ReadAll(msg.Body)
 		m.Body = string(slurp)
 		return nil
 	}
-	if err := m.parseMultipart(msg.Body, params["boundary"]); err != nil {
+	//c.Infof("before parseMultipart()")
+	if err := m.parseMultipart(c, msg.Body, params["boundary"]); err != nil {
+		c.Errorf("Error mail.ParseMultiPart(): %v",err)
 		return err
 	}
 	// If we didn't find a text/plain body, pick the first body we did find.
@@ -156,6 +163,7 @@ func (m *Message) parse(c appengine.Context, r io.Reader) error {
 		}
 	}
 	// dump image attachments to blob store and get the urls.
+	//c.Infof("before images2urls()")
 	m.images2urls(c);
 
 	return nil
@@ -210,21 +218,26 @@ func (m *Message) images2urls(c appengine.Context) {
 // parseMultipart populates Body (preferring text/plain) and images,
 // and may call itself recursively, walking through multipart/mixed
 // and multipart/alternative innards.
-func (m *Message) parseMultipart(r io.Reader, boundary string) error {
+func (m *Message) parseMultipart(c appengine.Context, r io.Reader, boundary string) error {
+	//c.Infof("inside parseMultipart()")
 	mr := multipart.NewReader(r, boundary)
 	for {
+		//c.Infof("before nextPart()")
 		part, err := mr.NextPart()
 		if err == io.EOF {
+			//c.Infof("NextPart(): Got EOF")
 			break
 		}
 		if err != nil {
+			c.Errorf("Error NextPart(): %v",err)
 			return err
 		}
 		partType, partParams, _ := mime.ParseMediaType(part.Header.Get("Content-Type"))
+		//c.Infof("ParseMediaType(): %v",partType)
 		if strings.HasPrefix(partType, "multipart/") {
-			err = m.parseMultipart(part, partParams["boundary"])
+			err = m.parseMultipart(c, part, partParams["boundary"])
 			if err != nil {
-				log.Printf("in boundary %q, returning error for multipart child %q: %v", boundary, partParams["boundary"], err)
+				c.Errorf("in boundary %q, returning error for multipart child %q: %v", boundary, partParams["boundary"], err)
 				return err
 			}
 			continue
@@ -246,7 +259,7 @@ func (m *Message) parseMultipart(r io.Reader, boundary string) error {
 			slurp, _ := ioutil.ReadAll(part)
 			imdata, err := ioutil.ReadAll(base64.NewDecoder(base64.StdEncoding, bytes.NewReader(removeNewlines(slurp))))
 			if err != nil {
-				log.Printf("image base64 decode error: %v", err)
+				c.Errorf("image base64 decode error: %v", err)
 				continue
 			}
 			m.images = append(m.images, img_attachment{
@@ -269,7 +282,7 @@ func (m *Message) parseMultipart(r io.Reader, boundary string) error {
 					reader := qprintable.NewQuotedPrintableDecoder(bytes.NewBuffer(slurp))
 					chunk, err := ioutil.ReadAll(reader)
 					if err != nil {
-						log.Printf("Quated printable decode error: %v", err)
+						c.Errorf("Quated printable decode error: %v", err)
 						continue;
 					}
 					m.BodyHtml = chunk

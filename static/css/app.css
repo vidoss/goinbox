@@ -20,20 +20,6 @@ body {
 	cursor: pointer;
 }
 
-.action-row {
-	margin-top: -10px;
-	margin-bottom: 10px;
-}
-
-.action-row .action-buttons {
-	margin-left: 20px;
-}
-
-.action-row .btn-group > .moveto {
-	border-bottom-left-radius: 0px;
-	border-top-left-radius: 0px;
-}
-
 .offset2-7 { /* offset2 minus 7 */
 	margin-left: 223px;
 }
@@ -53,8 +39,12 @@ body {
 	border: none;
 	border-top: 1px solid #f5f5f5;
 	border-left: 1px solid #f5f5f5;
+	min-height: 750px;
 }
 
-.email-body .progress {
-	margin-top: 50px;
+.action-row .input-prepend .input-medium {
+	margin-left: -5px;
+}
+.action-row .input-prepend .add-on {
+	font-size: 12px;
 }
