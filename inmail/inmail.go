@@ -22,6 +22,31 @@ import (
 	"qprintable"
 )
 
+// Message implements smtpd.Envelope by streaming the message to all
+// connected websocket clients.
+type Message struct {
+	// HTML-escaped fields sent to the client
+	From, To  string
+	FromDisplay string			`datastore:",noindex"`
+	Subject   string
+	Body      string  			`datastore:",noindex"` 
+	BodyHtml  []byte 				`datastore:",noindex"` 
+	ImageUrls []string			`datastore:",noindex"`
+	ReceivedDate time.Time
+	DeleteUnreadCount int64
+
+	// internal state
+	images []img_attachment
+	bodies []string
+	buf    bytes.Buffer // for accumulating email as it comes in
+	msg    interface{}  // alternate message to send
+}
+
+type img_attachment struct {
+	Type string
+	Data []byte
+}
+
 func init() {
 	http.HandleFunc("/_ah/mail/", incomingMail)
 }
@@ -90,30 +115,6 @@ func publishToChannels(c appengine.Context, msg *Message) error {
                 }
         }
         return nil
-}
-
-// Message implements smtpd.Envelope by streaming the message to all
-// connected websocket clients.
-type Message struct {
-	// HTML-escaped fields sent to the client
-	From, To  string
-	FromDisplay string			`datastore:",noindex"`
-	Subject   string
-	Body      string  			`datastore:",noindex"` 
-	BodyHtml  []byte 				`datastore:",noindex"` 
-	ImageUrls []string			`datastore:",noindex"`
-	ReceivedDate time.Time
-
-	// internal state
-	images []img_attachment
-	bodies []string
-	buf    bytes.Buffer // for accumulating email as it comes in
-	msg    interface{}  // alternate message to send
-}
-
-type img_attachment struct {
-	Type string
-	Data []byte
 }
 
 func getFromDisplay(emailAddress string) string {

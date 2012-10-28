@@ -1,17 +1,17 @@
 {{define "EMAILS"}}
-			<div class="span10 email-list">
+			<div class="email-list">
     			{{range $index,$message := .Messages}}
-				<div class="row" data-key="email/{{.Key}}">
-					<div class="span0"><input type="checkbox"></div>
-        		 	<div class="span2">{{.From}}&nbsp;</div>
-        		 	<div class="span7">{{.Subject | html}}</div>
+				<div class="row email-item" data-key="email/{{.Key}}">
+					<div class="span0 email-selected"><input type="checkbox"></div>
+        		 	<div class="span2 email-from">{{.From}}&nbsp;</div>
+        		 	<div class="span7 email-subject">{{.Subject | html}}</div>
 				</div>
     			{{end}}
 			</div>
 
 			{{range .Messages}}
 
-			<div id="email-{{.Key}}" class="span10 email-body hidden">
+			<div id="email-{{.Key}}" class="email-body hidden">
 				<textarea class="hidden">
 					{{.Body}}
 				</textarea>

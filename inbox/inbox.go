@@ -2,51 +2,60 @@ package inbox
 
 import (
 	"appengine"
-	"appengine/datastore"
 	"appengine/channel"
+	"appengine/datastore"
+	"appengine/memcache"
+	"encoding/json"
 	"html/template"
 	"inmail"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 )
 
 var (
-   templates = template.Must(template.ParseFiles(
-      "tmpl/fullpage.html",
-      "tmpl/messages.html",
-      "tmpl/emails.html",
-      "tmpl/error.html",
-   ))
+	templates = template.Must(template.ParseFiles(
+		"tmpl/fullpage.html",
+		"tmpl/messages.html",
+		"tmpl/emails.html",
+		"tmpl/error.html",
+	))
 )
 
 type templateData struct {
 	Token    string
-	Messages []inboxItem
+	Messages []mailItem
 }
 
-type inboxItem struct {
-	Key				int64
-	From  			string
-	Subject 			string
-	Body				template.HTML
-	ImageUrls		*[]string
-	ReceivedDate	time.Time
+type actionItem struct {
+	MessageKey string
+	Cmd        string
+}
+
+type mailItem struct {
+	Key               int64
+	From              string
+	Subject           string
+	Body              template.HTML
+	ImageUrls         *[]string
+	ReceivedDate      time.Time
+	DeleteUnreadCount int64
 }
 
 func init() {
 	http.HandleFunc("/", errorHandler(getInbox))
 	http.HandleFunc("/inbox", errorHandler(getInbox))
 	//http.HandleFunc("/trash", errorHandler(getTrash))
-	//http.HandleFunc("/email/id", errorHandler(getTrash))
+	http.HandleFunc("/email/", errorHandler(handleEmail))
 	//http.HandleFunc("/folder", errorHandler(getTrash))
 	//http.HandleFunc("/folder/id", errorHandler(getTrash))
 	//http.HandleFunc("/rules", errorHandler(getTrash))
 	//http.HandleFunc("/rules/id", errorHandler(getTrash))
 }
 
-func errorHandler(fn func(http.ResponseWriter,*http.Request) error) http.HandlerFunc {
-   return func(w http.ResponseWriter, r *http.Request) {
+func errorHandler(fn func(http.ResponseWriter, *http.Request) error) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
 
 		defer r.Body.Close()
 
@@ -59,9 +68,59 @@ func errorHandler(fn func(http.ResponseWriter,*http.Request) error) http.Handler
 	}
 }
 
+func handleEmail(w http.ResponseWriter, req *http.Request) error {
+
+	c := appengine.NewContext(req)
+	switch req.Method {
+	case "PUT", "DELETE":
+
+		emailId := req.URL.Path[strings.LastIndex(req.URL.Path, "/")+1:]
+		tknCookie, err := req.Cookie("token")
+		if err != nil {
+			return err
+		}
+		userid := tknCookie.Value
+
+		act, err := memcache.Get(c, userid)
+		if err != nil && err != memcache.ErrCacheMiss {
+			return err
+		}
+		var actions []actionItem
+		if err == nil {
+			//c.Infof("mcache: %s", act.Value)
+			err = json.Unmarshal(act.Value, &actions)
+			if err != nil {
+				return err
+			}
+			var dedupActions []actionItem
+			for _, a := range actions {
+				if a.Cmd != req.Method || a.MessageKey != emailId {
+					dedupActions = append(dedupActions, a)
+				}
+			}
+			actions = dedupActions
+		}
+
+		actions = append(actions, actionItem{Cmd: req.Method, MessageKey: emailId})
+		actJson, err := json.Marshal(actions)
+		if err != nil {
+			return err
+		}
+		//c.Infof("set: %s", actJson)
+		newAction := &memcache.Item{
+			Key:   userid,
+			Value: actJson,
+		}
+		if err := memcache.Set(c, newAction); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
 
 func getChannelToken(c appengine.Context, w http.ResponseWriter, req *http.Request) (string, error) {
-	tokenCookie, err := req.Cookie("token");
+	tokenCookie, err := req.Cookie("token")
 	if err != nil {
 		low, _, err := datastore.AllocateIDs(c, "endpoint", nil, 1)
 		if err != nil {
@@ -72,18 +131,18 @@ func getChannelToken(c appengine.Context, w http.ResponseWriter, req *http.Reque
 		if err != nil {
 			return "", err
 		}
-		cookie := http.Cookie{ Name: "token", Value: token }
-		http.SetCookie(w, &cookie);
+		cookie := http.Cookie{Name: "token", Value: token}
+		http.SetCookie(w, &cookie)
 		return token, nil
 	}
 	return tokenCookie.Value, nil
 }
 
 func getInbox(w http.ResponseWriter, req *http.Request) error {
-	
+
 	c := appengine.NewContext(req)
 
-	token,err := getChannelToken(c, w, req)
+	token, err := getChannelToken(c, w, req)
 	if err != nil {
 		return err
 	}
@@ -91,24 +150,24 @@ func getInbox(w http.ResponseWriter, req *http.Request) error {
 	q := datastore.NewQuery("Message").Order("-ReceivedDate").Limit(50)
 
 	messages := make([]inmail.Message, 0, 50)
-	keys, err := q.GetAll(c, &messages);
+	keys, err := q.GetAll(c, &messages)
 	if err != nil {
 		return err
 	}
 
-	inboxItems := make([]inboxItem,0,len(messages));
-	for i,msg := range messages {
+	inboxItems := make([]mailItem, 0, len(messages))
+	for i, msg := range messages {
 		body := template.HTML(msg.Body)
 		if msg.BodyHtml != nil {
 			body = template.HTML(msg.BodyHtml)
 		}
-		iItem := inboxItem{
-				Key: keys[i].IntID(), 
-				From: msg.FromDisplay,
-				Subject: msg.Subject,
-				Body: body,
-				ImageUrls: &msg.ImageUrls,
-				ReceivedDate: msg.ReceivedDate,
+		iItem := mailItem{
+			Key:          keys[i].IntID(),
+			From:         msg.FromDisplay,
+			Subject:      msg.Subject,
+			Body:         body,
+			ImageUrls:    &msg.ImageUrls,
+			ReceivedDate: msg.ReceivedDate,
 		}
 		inboxItems = append(inboxItems, iItem)
 	}
@@ -118,7 +177,6 @@ func getInbox(w http.ResponseWriter, req *http.Request) error {
 	if err != nil {
 		return err
 	}
-	return nil;
+	return nil
 
 }
-
