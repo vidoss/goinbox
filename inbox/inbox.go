@@ -43,6 +43,10 @@ type mailItem struct {
 	DeleteUnreadCount int64
 }
 
+type EndpointUser struct {
+	Token   string
+}
+
 func init() {
 	http.HandleFunc("/", errorHandler(getInbox))
 	http.HandleFunc("/inbox", errorHandler(getInbox))
@@ -122,7 +126,7 @@ func handleEmail(w http.ResponseWriter, req *http.Request) error {
 func getChannelToken(c appengine.Context, w http.ResponseWriter, req *http.Request) (string, error) {
 	tokenCookie, err := req.Cookie("token")
 	if err != nil {
-		low, _, err := datastore.AllocateIDs(c, "endpoint", nil, 1)
+		low, _, err := datastore.AllocateIDs(c, "Endpoint", nil, 1)
 		if err != nil {
 			return "", err
 		}
@@ -133,6 +137,12 @@ func getChannelToken(c appengine.Context, w http.ResponseWriter, req *http.Reque
 		}
 		cookie := http.Cookie{Name: "token", Value: token}
 		http.SetCookie(w, &cookie)
+
+		epkey := datastore.NewKey(c, "EndpointUser", "", low, nil)
+		if _, err := datastore.Put(c, epkey, &EndpointUser{Token:token}); err != nil {
+			return "", err
+		}
+		
 		return token, nil
 	}
 	return tokenCookie.Value, nil

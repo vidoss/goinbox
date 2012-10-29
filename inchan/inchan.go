@@ -5,6 +5,7 @@ import (
         "appengine"
         "appengine/datastore"
 		  "strconv"
+		  "inbox"
 )
 
 func init() {
@@ -21,7 +22,7 @@ func channelConnected(w http.ResponseWriter, r *http.Request) {
 				c.Errorf("Error ParseInt: %v", err)
                 return
         }
-        if _, err := datastore.Put(c, datastore.NewKey(c, "endpoint", "", from, nil), &Endpoint{}); err != nil {
+        if _, err := datastore.Put(c, datastore.NewKey(c, "Endpoint", "", from, nil), &Endpoint{}); err != nil {
 				c.Errorf("Error datastore.Put: %v", err)
                 return
         }
@@ -35,10 +36,24 @@ func channelDisconnected(w http.ResponseWriter, r *http.Request) {
 				c.Errorf("Error ParseInt: %v", err)
                 return
         }
-        if err := datastore.Delete(c, datastore.NewKey(c, "endpoint", "", from, nil)); err != nil {
+        if err := datastore.Delete(c, datastore.NewKey(c, "Endpoint", "", from, nil)); err != nil {
 				c.Errorf("Error datastore.Delete: %v", err)
                 return
         }
-        return
+
+		  token,err := getToken(c, from)
+		  if  err != nil {
+				c.Errorf("Error getToken(): %v", err)
+				return
+		  }
+		  c.Infof("Token: %s", token)
+		  return 
 }
 
+func getToken(c appengine.Context, clientId int64) (string, error) {
+		usr := new(inbox.EndpointUser)
+		if err := datastore.Get(c, datastore.NewKey(c, "EndpointUser", "", clientId, nil), usr); err != nil {
+			return "", err
+		}
+		return usr.Token, nil
+}

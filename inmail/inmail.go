@@ -85,7 +85,7 @@ func incomingMail(w http.ResponseWriter, r *http.Request) {
 }
 
 func publishToChannels(c appengine.Context, msg *Message) error {
-        q := datastore.NewQuery("endpoint").KeysOnly()
+        q := datastore.NewQuery("Endpoint").KeysOnly()
         endpoints, err := q.GetAll(c, nil)
         if err != nil {
 				c.Errorf("Error getting enpoints: %v", err)
