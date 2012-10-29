@@ -25,15 +25,15 @@ var (
 
 type templateData struct {
 	Token    string
-	Messages []mailItem
+	Messages []MailItem
 }
 
-type actionItem struct {
-	MessageKey string
+type ActionItem struct {
+	MessageKey int64
 	Cmd        string
 }
 
-type mailItem struct {
+type MailItem struct {
 	Key               int64
 	From              string
 	Subject           string
@@ -44,7 +44,7 @@ type mailItem struct {
 }
 
 type EndpointUser struct {
-	Token   string
+	Token string
 }
 
 func init() {
@@ -78,7 +78,7 @@ func handleEmail(w http.ResponseWriter, req *http.Request) error {
 	switch req.Method {
 	case "PUT", "DELETE":
 
-		emailId := req.URL.Path[strings.LastIndex(req.URL.Path, "/")+1:]
+		emailId,err := strconv.ParseInt(req.URL.Path[strings.LastIndex(req.URL.Path, "/")+1:],10,64)
 		tknCookie, err := req.Cookie("token")
 		if err != nil {
 			return err
@@ -89,14 +89,14 @@ func handleEmail(w http.ResponseWriter, req *http.Request) error {
 		if err != nil && err != memcache.ErrCacheMiss {
 			return err
 		}
-		var actions []actionItem
+		var actions []ActionItem
 		if err == nil {
 			//c.Infof("mcache: %s", act.Value)
 			err = json.Unmarshal(act.Value, &actions)
 			if err != nil {
 				return err
 			}
-			var dedupActions []actionItem
+			var dedupActions []ActionItem
 			for _, a := range actions {
 				if a.Cmd != req.Method || a.MessageKey != emailId {
 					dedupActions = append(dedupActions, a)
@@ -105,7 +105,7 @@ func handleEmail(w http.ResponseWriter, req *http.Request) error {
 			actions = dedupActions
 		}
 
-		actions = append(actions, actionItem{Cmd: req.Method, MessageKey: emailId})
+		actions = append(actions, ActionItem{Cmd: req.Method, MessageKey: emailId})
 		actJson, err := json.Marshal(actions)
 		if err != nil {
 			return err
@@ -139,10 +139,10 @@ func getChannelToken(c appengine.Context, w http.ResponseWriter, req *http.Reque
 		http.SetCookie(w, &cookie)
 
 		epkey := datastore.NewKey(c, "EndpointUser", "", low, nil)
-		if _, err := datastore.Put(c, epkey, &EndpointUser{Token:token}); err != nil {
+		if _, err := datastore.Put(c, epkey, &EndpointUser{Token: token}); err != nil {
 			return "", err
 		}
-		
+
 		return token, nil
 	}
 	return tokenCookie.Value, nil
@@ -157,7 +157,7 @@ func getInbox(w http.ResponseWriter, req *http.Request) error {
 		return err
 	}
 
-	q := datastore.NewQuery("Message").Order("-ReceivedDate").Limit(50)
+	q := datastore.NewQuery("Message").Order("DeleteUnreadCount").Order("-ReceivedDate").Limit(50)
 
 	messages := make([]inmail.Message, 0, 50)
 	keys, err := q.GetAll(c, &messages)
@@ -165,13 +165,13 @@ func getInbox(w http.ResponseWriter, req *http.Request) error {
 		return err
 	}
 
-	inboxItems := make([]mailItem, 0, len(messages))
+	inboxItems := make([]MailItem, 0, len(messages))
 	for i, msg := range messages {
 		body := template.HTML(msg.Body)
 		if msg.BodyHtml != nil {
 			body = template.HTML(msg.BodyHtml)
 		}
-		iItem := mailItem{
+		iItem := MailItem{
 			Key:          keys[i].IntID(),
 			From:         msg.FromDisplay,
 			Subject:      msg.Subject,
