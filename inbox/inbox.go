@@ -44,7 +44,8 @@ type MailItem struct {
 }
 
 type EndpointUser struct {
-	Token string
+	Token 	 string
+   CreatedOn time.Time
 }
 
 func init() {
@@ -143,7 +144,7 @@ func getChannelToken(c appengine.Context, w http.ResponseWriter, req *http.Reque
 		http.SetCookie(w, &cookie)
 
 		epkey := datastore.NewKey(c, "EndpointUser", "", low, nil)
-		if _, err := datastore.Put(c, epkey, &EndpointUser{Token: token}); err != nil {
+		if _, err := datastore.Put(c, epkey, &EndpointUser{Token: token, CreatedOn: time.Now()}); err != nil {
 			return "", err
 		}
 

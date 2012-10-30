@@ -11,11 +11,12 @@
 
 			{{range .Messages}}
 
-			<div id="email-{{.Key}}" class="email-body hidden">
+			<div id="email-{{.Key}}" class="email-body clearfix hidden">
 				<textarea class="hidden">
 					{{.Body}}
 				</textarea>
 				<iframe class="span10" scrolling="no" frameborder="0"></iframe>
+				<div class="email-body-subject">{{.Subject}}</div>
 			</div>
 
 			{{end}}

@@ -138,7 +138,6 @@
 
 				var ifrEl = ifrDoc[0];
 				ifrEl.open('text/html','replace');
-				ifrEl.write("<h4>"+mdl.get("subject")+"</h4>");
 				ifrEl.write(mdl.get("body"));
 				ifrEl.close();
 
