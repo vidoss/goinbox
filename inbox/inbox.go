@@ -75,8 +75,11 @@ func errorHandler(fn func(http.ResponseWriter, *http.Request) error) http.Handle
 func handleEmail(w http.ResponseWriter, req *http.Request) error {
 
 	c := appengine.NewContext(req)
-	switch req.Method {
-	case "PUT", "DELETE":
+
+	cmd := req.FormValue("cmd")
+	switch cmd {
+
+	case "UNREAD", "DELETE":
 
 		emailId,err := strconv.ParseInt(req.URL.Path[strings.LastIndex(req.URL.Path, "/")+1:],10,64)
 		tknCookie, err := req.Cookie("token")
@@ -98,14 +101,14 @@ func handleEmail(w http.ResponseWriter, req *http.Request) error {
 			}
 			var dedupActions []ActionItem
 			for _, a := range actions {
-				if a.Cmd != req.Method || a.MessageKey != emailId {
+				if a.Cmd != cmd || a.MessageKey != emailId {
 					dedupActions = append(dedupActions, a)
 				}
 			}
 			actions = dedupActions
 		}
 
-		actions = append(actions, ActionItem{Cmd: req.Method, MessageKey: emailId})
+		actions = append(actions, ActionItem{Cmd: cmd, MessageKey: emailId})
 		actJson, err := json.Marshal(actions)
 		if err != nil {
 			return err
@@ -114,6 +117,7 @@ func handleEmail(w http.ResponseWriter, req *http.Request) error {
 		newAction := &memcache.Item{
 			Key:   userid,
 			Value: actJson,
+			Expiration: time.Hour*2,
 		}
 		if err := memcache.Set(c, newAction); err != nil {
 			return err
@@ -135,7 +139,7 @@ func getChannelToken(c appengine.Context, w http.ResponseWriter, req *http.Reque
 		if err != nil {
 			return "", err
 		}
-		cookie := http.Cookie{Name: "token", Value: token}
+		cookie := http.Cookie{Name: "token", Value: token, MaxAge: 7200} /* two hours */
 		http.SetCookie(w, &cookie)
 
 		epkey := datastore.NewKey(c, "EndpointUser", "", low, nil)
@@ -157,7 +161,7 @@ func getInbox(w http.ResponseWriter, req *http.Request) error {
 		return err
 	}
 
-	q := datastore.NewQuery("Message").Order("DeleteUnreadCount").Order("-ReceivedDate").Limit(50)
+	q := datastore.NewQuery("Message").Order("-DeleteUnreadCount").Order("-ReceivedDate").Limit(50)
 
 	messages := make([]inmail.Message, 0, 50)
 	keys, err := q.GetAll(c, &messages)

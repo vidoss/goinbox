@@ -49,12 +49,16 @@
 		},
 
 		onUnreadBtnClick: function() {
-			_.each(this.collection.where({selected: true}),function(m){m.save()});
+			_.each(this.collection.where({selected: true}),function(m){
+							m.save({},{ data: 'cmd=UNREAD' })
+			});
 			ns.app_router.navigate("/",{trigger:true});
 		},
 
 		onDeleteBtnClick: function() {
-			_.each(this.collection.where({selected: true}),function(m){m.destroy()});
+			_.each(this.collection.where({selected: true}),function(m){
+							m.save({},{ data: 'cmd=DELETE' })
+			});
 			ns.app_router.navigate("/",{trigger:true});
 		},
 

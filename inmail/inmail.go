@@ -2,10 +2,9 @@ package inmail
 
 import (
 	"appengine"
-	"time"
-	"appengine/datastore"
 	"appengine/blobstore"
 	"appengine/channel"
+	"appengine/datastore"
 	"appengine/image"
 	"bytes"
 	"encoding/base64"
@@ -16,23 +15,24 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/mail"
-	"strings"
-	"strconv"
-	"regexp"
 	"qprintable"
+	"regexp"
+	"strconv"
+	"strings"
+	"time"
 )
 
 // Message implements smtpd.Envelope by streaming the message to all
 // connected websocket clients.
 type Message struct {
 	// HTML-escaped fields sent to the client
-	From, To  string
-	FromDisplay string			`datastore:",noindex"`
-	Subject   string
-	Body      string  			`datastore:",noindex"` 
-	BodyHtml  []byte 				`datastore:",noindex"` 
-	ImageUrls []string			`datastore:",noindex"`
-	ReceivedDate time.Time
+	From, To          string
+	FromDisplay       string `datastore:",noindex"`
+	Subject           string
+	Body              string   `datastore:",noindex"`
+	BodyHtml          []byte   `datastore:",noindex"`
+	ImageUrls         []string `datastore:",noindex"`
+	ReceivedDate      time.Time
 	DeleteUnreadCount int64
 
 	// internal state
@@ -51,7 +51,6 @@ func init() {
 	http.HandleFunc("/_ah/mail/", incomingMail)
 }
 
-
 func incomingMail(w http.ResponseWriter, r *http.Request) {
 
 	c := appengine.NewContext(r)
@@ -68,14 +67,14 @@ func incomingMail(w http.ResponseWriter, r *http.Request) {
 	}
 
 	_, err = datastore.Put(c, datastore.NewIncompleteKey(c, "Message", nil), &msg)
-   if err != nil {
+	if err != nil {
 		c.Errorf("Error saving mail: %v", err)
 		return
-    }
+	}
 
-   if err != nil {
+	if err != nil {
 		c.Errorf("Error converting images to url: %v", err)
-   }
+	}
 
 	err = publishToChannels(c, &msg)
 	if err != nil {
@@ -85,36 +84,36 @@ func incomingMail(w http.ResponseWriter, r *http.Request) {
 }
 
 func publishToChannels(c appengine.Context, msg *Message) error {
-        q := datastore.NewQuery("Endpoint").KeysOnly()
-        endpoints, err := q.GetAll(c, nil)
-        if err != nil {
-				c.Errorf("Error getting enpoints: %v", err)
-            return err
-        }
-        message, err := json.Marshal(msg)
-        if err != nil {
-				c.Errorf("Error marshaling msg -> json: %v", err)
-            return err
-        }
-        errc := make(chan error)
-        for _, e := range endpoints {
-                go func(e *datastore.Key) {
-                        err := channel.Send(c, strconv.FormatInt(e.IntID(), 10), string(message))
-                        if err != nil {
-                                // Send failed. Delete the endpoint.
-                                if err := datastore.Delete(c, e); err != nil {
-                                        c.Errorf("deleting endpoint: %v", err)
-                                }
-                        }
-                        errc <- err
-                }(e)
-        }
-        for i := 0; i < len(endpoints); i++ {
-                if err := <-errc; err != nil {
-                        c.Errorf("sending message: %v", err)
-                }
-        }
-        return nil
+	q := datastore.NewQuery("Endpoint").KeysOnly()
+	endpoints, err := q.GetAll(c, nil)
+	if err != nil {
+		c.Errorf("Error getting enpoints: %v", err)
+		return err
+	}
+	message, err := json.Marshal(msg)
+	if err != nil {
+		c.Errorf("Error marshaling msg -> json: %v", err)
+		return err
+	}
+	errc := make(chan error)
+	for _, e := range endpoints {
+		go func(e *datastore.Key) {
+			err := channel.Send(c, strconv.FormatInt(e.IntID(), 10), string(message))
+			if err != nil {
+				// Send failed. Delete the endpoint.
+				if err := datastore.Delete(c, e); err != nil {
+					c.Errorf("deleting endpoint: %v", err)
+				}
+			}
+			errc <- err
+		}(e)
+	}
+	for i := 0; i < len(endpoints); i++ {
+		if err := <-errc; err != nil {
+			c.Errorf("sending message: %v", err)
+		}
+	}
+	return nil
 }
 
 func getFromDisplay(emailAddress string) string {
@@ -124,16 +123,16 @@ func getFromDisplay(emailAddress string) string {
 	}
 	display := reg.Find([]byte(emailAddress))
 	if display != nil {
-		return strings.Replace(emailAddress,string(display),"",-1)
+		return strings.Replace(emailAddress, string(display), "", -1)
 	}
-	return strings.Split(emailAddress,"@")[0]
+	return strings.Split(emailAddress, "@")[0]
 }
 
 func (m *Message) parse(c appengine.Context, r io.Reader) error {
 	//c.Infof("Inside parse")
 	msg, err := mail.ReadMessage(r)
 	if err != nil {
-		c.Errorf("Error mail.ReadMessaage(): %v",err)
+		c.Errorf("Error mail.ReadMessaage(): %v", err)
 		return err
 	}
 	m.Subject = msg.Header.Get("Subject")
@@ -144,14 +143,14 @@ func (m *Message) parse(c appengine.Context, r io.Reader) error {
 
 	mediaType, params, err := mime.ParseMediaType(msg.Header.Get("Content-Type"))
 	if err != nil || !strings.HasPrefix(mediaType, "multipart/") {
-		c.Errorf("Error mail.ParseMediaType(): %v",err)
+		c.Errorf("Error mail.ParseMediaType(): %v", err)
 		slurp, _ := ioutil.ReadAll(msg.Body)
 		m.Body = string(slurp)
 		return nil
 	}
 	//c.Infof("before parseMultipart()")
 	if err := m.parseMultipart(c, msg.Body, params["boundary"]); err != nil {
-		c.Errorf("Error mail.ParseMultiPart(): %v",err)
+		c.Errorf("Error mail.ParseMultiPart(): %v", err)
 		return err
 	}
 	// If we didn't find a text/plain body, pick the first body we did find.
@@ -165,19 +164,19 @@ func (m *Message) parse(c appengine.Context, r io.Reader) error {
 	}
 	// dump image attachments to blob store and get the urls.
 	//c.Infof("before images2urls()")
-	m.images2urls(c);
+	m.images2urls(c)
 
 	return nil
 }
 
 func (m *Message) images2urls(c appengine.Context) {
-   urlc := make(chan string)
+	urlc := make(chan string)
 	for _, im := range m.images {
 		go func(img *img_attachment) {
 			w, err := blobstore.Create(c, img.Type)
 			if err != nil {
 				urlc <- err.Error()
-				return;
+				return
 			}
 			_, err = w.Write(img.Data)
 			if err != nil {
@@ -194,7 +193,7 @@ func (m *Message) images2urls(c appengine.Context) {
 				urlc <- err.Error()
 				return
 			}
-			url, err := image.ServingURL(c, key, &image.ServingURLOptions{Secure: false,Size: 0,Crop: false})
+			url, err := image.ServingURL(c, key, &image.ServingURLOptions{Secure: false, Size: 0, Crop: false})
 			if err != nil {
 				urlc <- err.Error()
 				return
@@ -203,16 +202,16 @@ func (m *Message) images2urls(c appengine.Context) {
 		}(&im)
 	}
 
-   imagescnt := len(m.images)
-	m.ImageUrls = make([]string,0,imagescnt)
-   for i := 0; i < imagescnt; i++ {
+	imagescnt := len(m.images)
+	m.ImageUrls = make([]string, 0, imagescnt)
+	for i := 0; i < imagescnt; i++ {
 		u := <-urlc
 		if strings.HasPrefix(u, "http") {
 			m.ImageUrls = append(m.ImageUrls, u)
 		} else {
 			c.Errorf("Error converting image to url: %v", u)
 		}
-   }
+	}
 	return
 }
 
@@ -230,7 +229,7 @@ func (m *Message) parseMultipart(c appengine.Context, r io.Reader, boundary stri
 			break
 		}
 		if err != nil {
-			c.Errorf("Error NextPart(): %v",err)
+			c.Errorf("Error NextPart(): %v", err)
 			return err
 		}
 		partType, partParams, _ := mime.ParseMediaType(part.Header.Get("Content-Type"))
@@ -274,26 +273,26 @@ func (m *Message) parseMultipart(c appengine.Context, r io.Reader, boundary stri
 		}
 		slurp, _ := ioutil.ReadAll(part)
 		switch {
-			case partType == "text/plain":
-				m.Body = string(slurp)
-				break;
+		case partType == "text/plain":
+			m.Body = string(slurp)
+			break
 
-			case partType == "text/html":
-				if part.Header.Get("Content-Transfer-Encoding") == "quoted-printable" {
-					reader := qprintable.NewQuotedPrintableDecoder(bytes.NewBuffer(slurp))
-					chunk, err := ioutil.ReadAll(reader)
-					if err != nil {
-						c.Errorf("Quated printable decode error: %v", err)
-						continue;
-					}
-					m.BodyHtml = chunk
-				} else {
-					m.BodyHtml = slurp
+		case partType == "text/html":
+			if part.Header.Get("Content-Transfer-Encoding") == "quoted-printable" {
+				reader := qprintable.NewQuotedPrintableDecoder(bytes.NewBuffer(slurp))
+				chunk, err := ioutil.ReadAll(reader)
+				if err != nil {
+					c.Errorf("Quated printable decode error: %v", err)
+					continue
 				}
-				break
+				m.BodyHtml = chunk
+			} else {
+				m.BodyHtml = slurp
+			}
+			break
 
-			default:
-				m.bodies = append(m.bodies, string(slurp))
+		default:
+			m.bodies = append(m.bodies, string(slurp))
 		}
 	}
 	return nil

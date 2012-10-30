@@ -74,7 +74,7 @@ func channelDisconnected(w http.ResponseWriter, r *http.Request) {
 			}
 			//c.Infof("Cmd: %s",a.Cmd)
 			switch a.Cmd {
-				case "PUT":
+				case "UNREAD":
 					mailItem.DeleteUnreadCount++
 				case "DELETE":
 					mailItem.DeleteUnreadCount--
@@ -83,6 +83,9 @@ func channelDisconnected(w http.ResponseWriter, r *http.Request) {
 			if _, err = datastore.Put(c, mkey, mailItem); err != nil {
 				c.Errorf("Error datastore.Get: %v", err)
 			}
+		}
+		if err = memcache.Delete(c, token); err != nil {
+			c.Errorf("Error memcache.Delete: %v", err)
 		}
 	}
 
